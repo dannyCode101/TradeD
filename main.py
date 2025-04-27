@@ -54,7 +54,7 @@ def open_trade(symbol, lot, order_type, sl_value, tp_value, deviation=20):
     if result is None:
         print("order_send() failed, result is None")
 
-
-
 open_trade(crash,0.2,mt5.ORDER_TYPE_BUY,4500.00,5100.00)
-open_trade(crash,1.0,mt5.ORDER_TYPE_SELL, 5100.00,4500.00)
+
+
+'''THIS IS MY CODE'''
