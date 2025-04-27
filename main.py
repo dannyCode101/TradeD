@@ -1,4 +1,6 @@
 import MetaTrader5 as mt5
+import pandas as pd
+from datetime import datetime, timedelta
 
 mt5.initialize()
 
@@ -11,15 +13,7 @@ if not mt5.login(account,password, server):
     mt5.shutdown()
     exit()
 
-info = mt5.account_info()
-
-
-symbols = mt5.symbols_get()
-
 crash = "Crash 1000 Index"
-
-lot = 0.2
-
 
 def open_trade(symbol, lot, order_type, sl_value, tp_value, deviation=20):
     price = mt5.symbol_info_tick(symbol)
@@ -54,7 +48,23 @@ def open_trade(symbol, lot, order_type, sl_value, tp_value, deviation=20):
     if result is None:
         print("order_send() failed, result is None")
 
-open_trade(crash,0.2,mt5.ORDER_TYPE_BUY,4500.00,5100.00)
 
+def get_chart(symbol,timeframe, bars = 1000):
+    time_from = datetime.now()
 
-'''THIS IS MY CODE'''
+    rates = mt5.copy_rates_from(symbol, timeframe, time_from, bars)
+   
+    df = pd.DataFrame(rates)
+    df['time'] = pd.to_datetime(df['time'], unit='s')  # Convert timestamp
+    return df
+
+a = get_chart(crash,mt5.TIMEFRAME_M5)
+print(a)
+
+a = get_chart(crash,mt5.TIMEFRAME_H1)
+print(a)
+
+a = get_chart(crash,mt5.TIMEFRAME_H4)
+print(a)
+"""open_trade(crash,0.2,mt5.ORDER_TYPE_BUY,4500.00,5100.00)
+open_trade(crash,1.0,mt5.ORDER_TYPE_SELL, 5100.00,4500.00)"""
