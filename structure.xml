@@ -1,0 +1,21 @@
+<Root>
+    <Trade>
+        <TakeTrade>Yes</TakeTrade>
+        <Type>BUY</Type>
+        <Entry>2000.00</Entry>
+        <Sl>1900.00</Sl>
+        <tp>2100</tp>
+    </Trade>
+
+    <Trade>
+        <TakeTrade>Yes</TakeTrade>
+        <Type>SELL</Type>
+        <Entry>2000.00</Entry>
+        <Sl>2100.00</Sl>
+        <tp>1900</tp>
+    </Trade>
+
+    <Trade>
+        <TakeTrade>No</TakeTrade>
+    </Trade>
+</Root>
