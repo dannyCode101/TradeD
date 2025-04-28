@@ -50,23 +50,30 @@ def open_trade(symbol, lot, order_type, sl_value=None, tp_value=None, deviation=
         print("order_send() failed, result is None")
 
 def get_chart(symbol, timeframe, bars=1000):
-    time_from = datetime.now()
+    try:
+        time_from = datetime.now()
 
-    rates = mt5.copy_rates_from(symbol, timeframe, time_from, bars)
-   
-    df = pd.DataFrame(rates)
-    df['time'] = pd.to_datetime(df['time'], unit='s')
-    return df
+        rates = mt5.copy_rates_from(symbol, timeframe, time_from, bars)
+    
+        df = pd.DataFrame(rates)
+        df['time'] = pd.to_datetime(df['time'], unit='s')
+        return df
+    except:
+        return ""
 
 def save_chart_date(symbol,arr, bars = 100):
     names = []
-    for a in arr:
-        timeframe = a[0]
-        name = symbol + " " + a[1] + ".csv"
-        value = get_chart(symbol=symbol, timeframe=timeframe, bars=bars)
-        value.to_csv(name,index=False)
-        names.append(name)
-    return names
+    try:
+        for a in arr:
+            timeframe = a[0]
+            name = symbol + " " + a[1] + ".csv"
+            value = get_chart(symbol=symbol, timeframe=timeframe, bars=bars)
+            value.to_csv(name,index=False)
+            names.append(name)
+        return names
+    except:
+        print("No Valid Input !")
+        return
 
 def view_open_trades():
     positions = mt5.positions_get()
@@ -108,7 +115,8 @@ def app():
         print("1: Open Trade")
         print("2: View Open Trades")
         print("3: Close Trade")
-        print("4: Exit")
+        print("4: Send to AI Trader")
+        print("5: Exit")
 
         choice = input("Select an option : ").strip()
 
@@ -142,21 +150,14 @@ def app():
             except:
                 print("Invalid Ticket error")
         elif choice == "4":
+            symbol = input("Enter symbol : ").strip()
+            arr = [ [mt5.TIMEFRAME_H1, "Hour 1"], [mt5.TIMEFRAME_M5, "Min 5"], [mt5.TIMEFRAME_M15, "Min 15"]]
+            save_chart_date(symbol=symbol,arr=arr, bars=200)
+
+        elif choice == "5":
             print("Closing App")
             break
         else:
             print("Invalid Choice")
 
-
-
-       
-
-
-arr = [ [mt5.TIMEFRAME_H1, "Hour 1"], [mt5.TIMEFRAME_M5, "Min 5"], [mt5.TIMEFRAME_M15, "Min 15"]]
-crash1000 = "Crash 1000 Index"
-#gold = "XAUUSD"
-#view_open_trades()
 app()
-#print(save_chart_date(crash1000,arr=arr, bars=200))
-#save_chart_date("EURUSD",arr=arr, bars=200)
-open_trade(crash1000, 20.00, mt5.ORDER_TYPE_BUY)
