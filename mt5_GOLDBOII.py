@@ -17,8 +17,7 @@ RSI_OVERSOLD = 25
 # Trade cost config
 SPREAD_PIPS = 2     # realistic spread for gold
 COMMISSION_PER_TRADE = 0  # flat fee (optional)
-RISK_PER_TRADE = 0.05  # 3% of account balance
-
+RISK_PER_TRADE = 0.05 # 3% of account balance
 # === INIT ===
 print("Connecting to MetaTrader 5...")
 mt5.initialize()
@@ -37,16 +36,30 @@ except ValueError:
     exit()
 
 # === HELPERS ===
-def get_chart(symbol, timeframe, months=1):
+def get_chart(symbol, timeframe, months=36):
     date_to = datetime.now()
-    date_from = date_to - timedelta(days=30 * months)
-    rates = mt5.copy_rates_range(symbol, timeframe, date_from, date_to)
-    if rates is None:
-        print(f"❌ No data for {symbol}")
+    all_data = []
+
+    for m in range(0, months, 6):
+        chunk_to = date_to - timedelta(days=m*30)
+        chunk_from = chunk_to - timedelta(days=180)
+
+        rates = mt5.copy_rates_range(symbol, timeframe, chunk_from, chunk_to)
+
+        if rates is not None and len(rates) > 0:
+            df_chunk = pd.DataFrame(rates)
+            all_data.append(df_chunk)
+
+    if not all_data:
+        print("❌ No data found over the selected period")
         return pd.DataFrame()
-    df = pd.DataFrame(rates)
+
+    df = pd.concat(all_data, ignore_index=True)
+    df.drop_duplicates(subset='time', inplace=True)
     df['time'] = pd.to_datetime(df['time'], unit='s')
-    return df
+    df.sort_values('time', inplace=True)
+    return df.reset_index(drop=True)
+
 
 def calculate_rsi(close, period=14):
     delta = close.diff()
@@ -56,22 +69,37 @@ def calculate_rsi(close, period=14):
     return 100 - (100 / (1 + rs))
 
 def simulate_trade(entry, sl, tp, highs, lows, direction):
-    """Simulates trade inside future candles to avoid bias"""
+    """
+    Accurately simulate trade outcome by walking forward in time.
+    Stops at the first candle where either TP or SL is hit.
+    """
+
     for high, low in zip(highs, lows):
         if direction == 'buy':
-            if low <= sl:
+            # SL below, TP above
+            if low <= sl and high >= tp:
+                # Both hit same candle — assume worst case: SL hit first
                 return 'loss'
-            if high >= tp:
+            elif low <= sl:
+                return 'loss'
+            elif high >= tp:
                 return 'win'
+
         elif direction == 'sell':
-            if high >= sl:
+            # SL above, TP below
+            if high >= sl and low <= tp:
+                # Both hit same candle — assume worst case: SL hit first
                 return 'loss'
-            if low <= tp:
+            elif high >= sl:
+                return 'loss'
+            elif low <= tp:
                 return 'win'
-    return None  # no hit
+
+    return None  # Neither hit, even after entire simulation
+
 
 def backtest_gold_rsi_pullback(symbol):
-    df = get_chart(symbol, mt5.TIMEFRAME_M15, months=12)
+    df = get_chart(symbol, mt5.TIMEFRAME_M15, months=36)
     if df.empty:
         print("❌ Not enough data")
         return
