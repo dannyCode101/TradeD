@@ -6,7 +6,7 @@ from datetime import datetime, timedelta
 ACCOUNT = 40610362
 PASSWORD = "MyDeriv123!"
 SERVER = "Deriv-Demo"
-SYMBOL = "XAUUSD"
+SYMBOL = "GBPJPY"
 SL_PIPS = 100
 TP_PIPS = 100
 RSI_PERIOD = 14
@@ -99,7 +99,7 @@ def simulate_trade(entry, sl, tp, highs, lows, direction):
 
 
 def backtest_gold_rsi_pullback(symbol):
-    df = get_chart(symbol, mt5.TIMEFRAME_M15, months=36)
+    df = get_chart(symbol, mt5.TIMEFRAME_M15, months=12)
     if df.empty:
         print("❌ Not enough data")
         return
@@ -118,7 +118,7 @@ def backtest_gold_rsi_pullback(symbol):
     trades = []
     last_loss_time = None
 
-    for i in range(EMA_PERIOD + RSI_PERIOD + 1, len(df) - 30):
+    for i in range(EMA_PERIOD + RSI_PERIOD + 1, len(df)):
         time_now = df['time'].iloc[i]
 
         # Skip trades if last LOSS was less than 2 hours ago
@@ -148,8 +148,8 @@ def backtest_gold_rsi_pullback(symbol):
             tp = entry_price - TP_PIPS * pip_size
 
         if direction:
-            highs = df['high'].iloc[i+1:i+30].values
-            lows = df['low'].iloc[i+1:i+30].values
+            highs = df['high'].iloc[i+1:i+100].values
+            lows = df['low'].iloc[i+1:i+100].values
 
             result = simulate_trade(entry_price, sl, tp, highs, lows, direction)
 
