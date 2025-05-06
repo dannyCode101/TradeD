@@ -4,6 +4,7 @@ import time
 import smtplib
 from datetime import datetime, timedelta
 from email.mime.text import MIMEText
+import math
 
 # === CONFIG ===
 ACCOUNT = 209782758
@@ -14,7 +15,6 @@ EMA_PERIOD = 200
 RSI_OVERBOUGHT = 75
 RSI_OVERSOLD = 25
 SPREAD_PIPS = 2
-RISK_PER_TRADE = 0.05
 last_heartbeat_sent = None
 last_checked_candle = None
 last_loss_time = None
@@ -23,12 +23,16 @@ symbols_config = {
     "GBPJPYm":{
         "SL_PIPS" : 100,
         "TP_PIPS" : 100,
+        "risk_per_trade" : 0.05,
+        "points_for_lots" : 700,
         "last_checked_candle" : None,
         "last_loss_time" : None,
     },
     "XAUUSDm":{
         "SL_PIPS" : 1000,
         "TP_PIPS" : 1000,
+        "risk_per_trade" : 0.05,
+        "points_for_lots" : 1000,
         "last_checked_candle" : None,
         "last_loss_time" : None,
     }
@@ -80,7 +84,9 @@ def calculate_rsi(close, period=14):
 
 def calculate_lot_size(balance, sl_pips, risk_percent):
     risk_amount = balance * risk_percent
-    return round(risk_amount / sl_pips, 2)
+    raw_lot_size = risk_amount / sl_pips
+    rounded_up = math.ceil(raw_lot_size * 100) / 100  # round up to 2 decimal places
+    return rounded_up
 
 def open_trade(symbol, lot, order_type, sl, tp, deviation=20):
     price_info = mt5.symbol_info_tick(symbol)
@@ -152,7 +158,7 @@ def check_for_trades(symbol, config):
     digits = mt5.symbol_info(symbol).digits
     sl_pips = config["SL_PIPS"]
     tp_pips = config["TP_PIPS"]
-    spread = SPREAD_PIPS * pip_size
+    risk = config["risk_per_trade"]
 
     if close > ema and rsi < RSI_OVERSOLD:
         direction = "buy"
@@ -165,17 +171,12 @@ def check_for_trades(symbol, config):
         sl = entry_price - sl_pips * pip_size if direction == "buy" else entry_price + sl_pips * pip_size
         tp = entry_price + tp_pips * pip_size if direction == "buy" else entry_price - tp_pips * pip_size
         order_type = mt5.ORDER_TYPE_BUY if direction == "buy" else mt5.ORDER_TYPE_SELL
-        lot_size = calculate_lot_size(mt5.account_info().equity, sl_pips, RISK_PER_TRADE)
-
+        lot_size = calculate_lot_size(mt5.account_info().equity, config["points_for_lots"], risk)
         result = open_trade(symbol, lot_size, order_type, sl, tp)
         executed_signals.add(signal_id)
 
         if result and result.retcode == mt5.TRADE_RETCODE_DONE:
             send_email(f"📈 {symbol} Trade Opened", f"{direction.upper()} entry: {entry_price}, SL: {sl}, TP: {tp}")
-
-
-
-
 
 def simulate_trade(entry, sl, tp, highs, lows, direction):
     """
@@ -265,7 +266,8 @@ def run_backtest(symbol, config):
         direction = None
         sl_pips = config["SL_PIPS"]
         tp_pips = config["TP_PIPS"]
-
+        risk = config["risk_per_trade"]
+        
         spread_adjustment = SPREAD_PIPS * pip_size
         sl = tp = None
         
@@ -289,7 +291,7 @@ def run_backtest(symbol, config):
             result = simulate_trade(entry_price, sl, tp, highs, lows, direction)
 
             if result:
-                risk_amount = balance * RISK_PER_TRADE
+                risk_amount = balance * risk
                 lot_value_per_pip = risk_amount / sl_pips
                 profit = tp_pips * lot_value_per_pip
                 loss = -tp_pips * lot_value_per_pip
@@ -334,14 +336,18 @@ def send_daily_heartbeat():
         last_heartbeat_sent = now
 
 print("running")
-for symbol, config in symbols_config.items():
-    run_backtest(symbol, config)
+"""for symbol, config in symbols_config.items():
+    results = run_backtest(symbol, config)
+    
+    if results is not None:
+        results.to_csv(f"{symbol}_results.csv", index=False)
+        print(results.tail())"""
+        
 while True:
     try:
         for symbol, config in symbols_config.items():
             check_for_trades(symbol, config)
         send_daily_heartbeat()
-        time.sleep(30)  # Run every 30 seconds
     except Exception as e:
         print("Error in main loop:", e)
         time.sleep(60)
