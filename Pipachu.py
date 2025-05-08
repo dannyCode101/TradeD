@@ -135,9 +135,7 @@ def run_backtest(symbol, config):
 
         # Allow between 15:00–15:59, 16:00:00, 20:00–20:59, and 21:00:00
         allowed = (
-            hour in [15, 20] or
-            (hour == 16 and minute == 0) or
-            (hour == 21 and minute == 0)
+            hour in [15,16, 21, 20] 
         )
 
         if not allowed:
